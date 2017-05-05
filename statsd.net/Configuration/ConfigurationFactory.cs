@@ -36,10 +36,6 @@ namespace statsd.net.Configuration
                         break;
                     case "http":
                         listener = new HTTPListenerConfiguration(item.ToInt("port"));
-                        if (item.Attribute("headerKey") != null)
-                        {
-                            ((HTTPListenerConfiguration)listener).HeaderKey = item.Attribute("headerKey").Value;
-                        }
                         break;
                     case "statsdnet":
                         listener = new StatsdnetListenerConfiguration(item.ToInt("port"));

@@ -31,11 +31,9 @@ namespace statsd.net.Configuration
     public class HTTPListenerConfiguration : ListenerConfiguration
     {
         public int Port { get; set; }
-        public string HeaderKey { get; set; }
-        public HTTPListenerConfiguration(int port, string headerKey = null)
+        public HTTPListenerConfiguration(int port)
         {
             Port = port;
-            HeaderKey = headerKey;
         }
     }
 
