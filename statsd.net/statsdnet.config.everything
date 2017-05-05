@@ -3,7 +3,7 @@
     <listeners>
         <udp port="8000" />
         <tcp port="8001" />
-        <http port="8002" />
+        <http port="8002" allowCors="cors.whitelist" />
         <statsdnet port="8003" />
         <mssql-relay batchSize="10" deleteAfterSend="false" pollInterval="1s" connectionString="your-db-connection-string" />
     </listeners>
