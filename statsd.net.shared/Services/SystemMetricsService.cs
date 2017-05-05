@@ -6,19 +6,15 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using statsd.net.core;
+using statsd.net.core.Backends;
+using statsd.net.core.Structures;
 using statsd.net.shared.Listeners;
-using statsd.net.shared.Backends;
 using statsd.net.shared.Messages;
 using statsd.net.shared.Structures;
 
 namespace statsd.net.shared.Services
 {
-  public interface ISystemMetricsService
-  {
-    void LogCount(string name, int quantity = 1);
-    void LogGauge(string name, int value);
-    bool HideSystemStats { get; set; }
-  }
 
   /// <summary>
   /// Keeps track of things like bad lines, failed sends, lines processed etc.
@@ -27,7 +23,7 @@ namespace statsd.net.shared.Services
   {
     private string _prefix;
     private ITargetBlock<Bucket> _target;
-    private ConcurrentDictionary<string, int> _metrics;
+    private ConcurrentDictionary<string, double> _metrics;
     public bool HideSystemStats { get; set; }
 
     public SystemMetricsService(string serviceName, string prefix = null, IIntervalService intervalService = null, bool hideSystemStats = false)
@@ -37,7 +33,7 @@ namespace statsd.net.shared.Services
         intervalService = new IntervalService(10);
       }
       _prefix = serviceName + "." + (String.IsNullOrEmpty(prefix) ? String.Empty : (prefix + "."));
-      _metrics = new ConcurrentDictionary<string, int>();
+      _metrics = new ConcurrentDictionary<string, double>();
       HideSystemStats = hideSystemStats;
       intervalService.Elapsed += SendMetrics;
       intervalService.Start();

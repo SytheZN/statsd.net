@@ -1,4 +1,5 @@
 ﻿using log4net;
+using statsd.net.core.Structures;
 using statsd.net.shared;
 using statsd.net.shared.Messages;
 using statsd.net.shared.Services;
@@ -22,7 +23,7 @@ namespace statsd.net.Framework
       IIntervalService intervalService,
       ILog log)
     {
-      var gauges = new ConcurrentDictionary<string, int>();
+      var gauges = new ConcurrentDictionary<string, double>();
       var root = rootNamespace;
       var ns = String.IsNullOrEmpty(rootNamespace) ? "" : rootNamespace + ".";
 
@@ -44,7 +45,7 @@ namespace statsd.net.Framework
           if (removeZeroGauges)
           {
             // Get all zero-value gauges
-            int placeholder;
+            double placeholder;
             var zeroGauges = 0;
             for (int index = 0; index < items.Length; index++)
             {
@@ -61,6 +62,7 @@ namespace statsd.net.Framework
           }
           
           gauges.Clear();
+          target.Post(bucket);
         };
 
       incoming.Completion.ContinueWith(p =>

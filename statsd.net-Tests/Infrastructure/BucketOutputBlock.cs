@@ -1,4 +1,6 @@
-﻿using statsd.net.shared.Messages;
+﻿using statsd.net.core.Messages;
+using statsd.net.core.Structures;
+using statsd.net.shared.Messages;
 using statsd.net.shared.Structures;
 using System;
 using System.Collections.Generic;
@@ -32,7 +34,7 @@ namespace statsd.net_Tests.Infrastructure
       return _targetBlock[line];
     }
 
-    public int this[string key]
+    public double this[string key]
     {
       get { return _targetBlock[key]; }
     }

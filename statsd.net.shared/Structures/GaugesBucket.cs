@@ -1,4 +1,6 @@
-﻿using statsd.net.shared.Messages;
+﻿using statsd.net.core.Messages;
+using statsd.net.core.Structures;
+using statsd.net.shared.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,12 +12,12 @@ namespace statsd.net.shared.Structures
 {
   public class GaugesBucket : Bucket
   {
-    public KeyValuePair<string, int>[] Gauges { get; set; }
+    public KeyValuePair<string, double>[] Gauges { get; set; }
 
-    public GaugesBucket(KeyValuePair<string, int>[] gauges, long epoch, string rootNamespace = "")
-      : base(BucketType.Count, epoch, rootNamespace)
+    public GaugesBucket(KeyValuePair<string, double>[] gauges, long epoch, string rootNamespace = "")
+      : base(BucketType.Gauge, epoch, rootNamespace)
     {
-      Gauges = Gauges;
+      Gauges = gauges;
     }
 
     public override GraphiteLine[] ToLines()

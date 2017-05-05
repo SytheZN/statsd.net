@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>statsd.net</RootNamespace>
-    <AssemblyName>statsd.net</AssemblyName>
+    <AssemblyName>statsdnet</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
@@ -49,13 +49,14 @@
       <HintPath>..\packages\StatsdCsharpClient.1.2.1.0\lib\net45\StatsdClient.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
     <Reference Include="System.ServiceProcess" />
-    <Reference Include="System.Threading.Tasks.Dataflow, Version=4.5.14.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+    <Reference Include="System.Threading.Tasks.Dataflow, Version=4.5.20.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Microsoft.Tpl.Dataflow.4.5.14\lib\portable-net45+win8\System.Threading.Tasks.Dataflow.dll</HintPath>
+      <HintPath>..\packages\Microsoft.Tpl.Dataflow.4.5.20\lib\portable-net45+win8+wpa81\System.Threading.Tasks.Dataflow.dll</HintPath>
     </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -66,6 +67,7 @@
   <ItemGroup>
     <Compile Include="Backends\ConsoleBackend.cs" />
     <Compile Include="Backends\GraphiteBackend.cs" />
+    <Compile Include="Backends\GraphiteTCPBackend.cs" />
     <Compile Include="Backends\Librato\APIPayload.cs" />
     <Compile Include="Backends\Librato\LibratoBackend.cs" />
     <Compile Include="Backends\Librato\LibratoCounter.cs" />
@@ -83,6 +85,7 @@
     <Compile Include="Configuration\ListenerConfiguration.cs" />
     <Compile Include="Configuration\StatsdnetConfiguration.cs" />
     <Compile Include="Framework\PassThroughBlockFactory.cs" />
+    <Compile Include="Framework\TimedCalendargramAggregatorBlockFactory.cs" />
     <Compile Include="Framework\TimedSetAggregatorBlockFactory.cs" />
     <Compile Include="Framework\TimedLatencyPercentileAggregatorBlockFactory.cs" />
     <Compile Include="Framework\TimedCounterAggregatorBlockFactory.cs" />
@@ -101,7 +104,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Properties\SlowCheetah\SlowCheetah.Transforms.targets" />
-    <None Include="statsdnet.config" />
+    <None Include="statsdnet.config.graphite">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="statsdnet.config.dbrelay">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="statsdnet.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="statsdnet.config.librato" />
     <None Include="statsdnet.config.relay" />
     <None Include="statsdnet.config.everything">
@@ -131,6 +142,10 @@
     <None Include="readme.md" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\statsd.net.core\statsd.net.core.csproj">
+      <Project>{9d5c34b4-3623-4234-bc82-f9da37204971}</Project>
+      <Name>statsd.net.core</Name>
+    </ProjectReference>
     <ProjectReference Include="..\statsd.net.shared\statsd.net.shared.csproj">
       <Project>{be150548-d5eb-4289-8706-3ea475175592}</Project>
       <Name>statsd.net.shared</Name>
@@ -146,7 +161,8 @@
   <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
   <Import Project="$(SlowCheetahTargets)" Condition="Exists('$(SlowCheetahTargets)')" Label="SlowCheetah" />
   <PropertyGroup>
-    <PostBuildEvent>$(SolutionDir)packages\ilmerge.2.13.0307\ILMerge.exe /target:exe /out:$(TargetDir)\statsdnet.exe /v4 $(TargetDir)statsd.net.exe $(TargetDir)log4net.dll $(TargetDir)Microsoft.Practices.TransientFaultHandling.Core.dll $(TargetDir)\statsd.net.shared.dll $(TargetDir)\System.Threading.Tasks.Dataflow.dll $(TargetDir)\Kayak.dll $(TargetDir)\StatsdClient.dll</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup Label="SlowCheetah">
     <SlowCheetahToolsPath>$([System.IO.Path]::GetFullPath( $(MSBuildProjectDirectory)\..\packages\SlowCheetah.2.5.10.3\tools\))</SlowCheetahToolsPath>

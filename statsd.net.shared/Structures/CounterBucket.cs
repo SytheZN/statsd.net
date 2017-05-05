@@ -1,4 +1,6 @@
-﻿using statsd.net.shared.Messages;
+﻿using statsd.net.core.Messages;
+using statsd.net.core.Structures;
+using statsd.net.shared.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,9 +10,9 @@ using System.Threading.Tasks.Dataflow;
 
 namespace statsd.net.shared.Structures
 {
-  public class CounterBucket : Bucket<int>
+  public class CounterBucket : Bucket<double>
   {
-    public CounterBucket(KeyValuePair<string, int>[] counts, long epoch, string rootNamespace = "")
+    public CounterBucket(KeyValuePair<string, double>[] counts, long epoch, string rootNamespace = "")
       : base(BucketType.Count, counts, epoch, rootNamespace)
     {
     }

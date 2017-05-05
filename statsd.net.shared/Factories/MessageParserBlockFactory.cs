@@ -1,4 +1,5 @@
-﻿using statsd.net.shared.Listeners;
+﻿using statsd.net.core;
+using statsd.net.shared.Listeners;
 using statsd.net.shared.Messages;
 using System;
 using System.Collections.Generic;
@@ -26,7 +27,7 @@ namespace statsd.net.shared.Factories
           if (message is InvalidMessage)
           {
             systemMetrics.LogCount("parser.badLinesSeen");
-            log.Info("Bad message: " + ((InvalidMessage)message).Reason);
+            log.Info("Bad message: " + ((InvalidMessage)message).Reason + Environment.NewLine + line);
           }
           return message;
         },

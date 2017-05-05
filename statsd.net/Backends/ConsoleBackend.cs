@@ -1,5 +1,11 @@
-﻿using statsd.net.shared.Backends;
+﻿using System.ComponentModel.Composition;
+using System.Xml.Linq;
+using statsd.net.Configuration;
+using statsd.net.core;
+using statsd.net.core.Backends;
+using statsd.net.core.Structures;
 using statsd.net.shared.Messages;
+using statsd.net.shared.Services;
 using statsd.net.shared.Structures;
 using System;
 using System.Collections.Generic;
@@ -10,12 +16,15 @@ using System.Threading.Tasks.Dataflow;
 
 namespace statsd.net.Backends
 {
+  [Export(typeof(IBackend))]
   public class ConsoleBackend : IBackend
   {
     private bool _isActive;
     private Task _completionTask;
 
-    public ConsoleBackend()
+    public string Name { get { return "Console"; } }  
+
+    public void Configure(string collectorName, XElement configElement, ISystemMetricsService systemMetrics)
     {
       _isActive = true;
       _completionTask = new Task(() => { _isActive = false; });
@@ -52,5 +61,6 @@ namespace statsd.net.Backends
     {
       get { return 0; }
     }
+
   }
 }

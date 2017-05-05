@@ -6,14 +6,15 @@ using System.Threading.Tasks;
 
 namespace statsd.net.shared.Messages
 {
-  public enum MessageType
-  {
-    Counter,
-    Timing,
-    Set,
-    Gauge,
-    Raw,
-    Invalid,
-    Unknown
-  }
+    public enum MessageType
+    {
+        Counter,
+        Timing,
+        Set,
+        Gauge,
+        Calendargram,
+        Raw,
+        Invalid,
+        Unknown,
+    }
 }

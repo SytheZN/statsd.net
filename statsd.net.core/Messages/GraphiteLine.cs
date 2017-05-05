@@ -1,27 +1,29 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace statsd.net.shared.Messages
+namespace statsd.net.core.Messages
 {
   public class GraphiteLine
   {
-    private int _quantity;
-    private long _epoc;
+    private readonly double _quantity;
+    private readonly long _epoc;
 
     public string Name { get; private set; }
-    public int Quantity { get { return _quantity; } }
+    public double Quantity { get { return _quantity; } }
     public long Epoc { get { return _epoc; } }
 
     public GraphiteLine(string name, 
-      int quantity, 
+      double quantity,
       long? epoc = null)
     {
       Name = name;
       _quantity = quantity;
-      _epoc = epoc ?? Utility.GetEpoch();
+      _epoc = epoc ?? GetEpoch();
+    }
+
+    public static long GetEpoch()
+    {
+      return (DateTime.Now.ToUniversalTime().Ticks - 621355968000000000) / 10000000;
     }
 
     public override string ToString()
