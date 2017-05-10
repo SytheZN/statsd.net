@@ -55,6 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BetterExpando.cs" />
+    <Compile Include="BinaryStringTree.cs" />
     <Compile Include="Blocks\TimedBufferBlock.cs" />
     <Compile Include="Encryption\SimplerAES.cs" />
     <Compile Include="ExtensionMethods.cs" />

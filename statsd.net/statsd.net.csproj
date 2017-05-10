@@ -103,6 +103,7 @@
     <Compile Include="Framework\StatsdMessageRouterBlock.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cors.whitelist" />
     <None Include="Properties\SlowCheetah\SlowCheetah.Transforms.targets" />
     <None Include="statsdnet.config.graphite">
       <SubType>Designer</SubType>

@@ -71,6 +71,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="BinaryStringTreeTests.cs" />
     <Compile Include="Infrastructure\BucketOutputBlock.cs" />
     <Compile Include="Infrastructure\ControllableIntervalService.cs" />
     <Compile Include="Infrastructure\InAppListenerOutputChannel.cs" />
