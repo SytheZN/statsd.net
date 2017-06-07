@@ -1,0 +1,20 @@
+﻿#     
+# This is an example CORS whitelist file.
+# Usage:
+#     To use this file set the "allowCors" attribute to this filename.
+#     e.g.    <http port="8002" allowCors="cors.whitelist" />
+#
+# Format:
+#     Allowed origins should be specified one per line.
+#     Any blank lines, lines containing spaces or starting lines with # will be ignored.
+#     Please ensure that this file ends with a blank line.
+#     Origins should be specified one per line including the relevant protocol:
+#     
+#     e.g.    http://www.google.com
+#             https://www.google.com
+#             http://api.wikipedia.org
+#
+
+http://test.statsdnet.local
+https://test.statsdnet.local
+http://test.cors.net

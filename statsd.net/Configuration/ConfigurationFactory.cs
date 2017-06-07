@@ -9,96 +9,137 @@ using statsd.net.shared;
 
 namespace statsd.net.Configuration
 {
-    public static class ConfigurationFactory
+  public static class ConfigurationFactory
+  {
+    public static StatsdnetConfiguration Parse(string configFile)
     {
-        public static StatsdnetConfiguration Parse(string configFile)
+      var config = new StatsdnetConfiguration();
+      var xml = XDocument.Parse(File.ReadAllText(configFile));
+      var statsdnet = xml.Element("statsdnet");
+      config.Name = statsdnet.Attribute("name").Value;
+      if (statsdnet.Attributes().Any(p => p.Name == "hideSystemStats"))
+      {
+        config.HideSystemStats = statsdnet.ToBoolean("hideSystemStats");
+      }
+
+      // Add listeners
+      foreach (var item in statsdnet.Element("listeners").Elements())
+      {
+        ListenerConfiguration listener = null;
+        switch (item.Name.LocalName)
         {
-            var config = new StatsdnetConfiguration();
-            var xml = XDocument.Parse(File.ReadAllText(configFile));
-            var statsdnet = xml.Element("statsdnet");
-            config.Name = statsdnet.Attribute("name").Value;
-            if (statsdnet.Attributes().Any(p => p.Name == "hideSystemStats"))
+          case "udp":
+            listener = new UDPListenerConfiguration(item.ToInt("port"));
+            break;
+          case "tcp":
+            listener = new TCPListenerConfiguration(item.ToInt("port"));
+            break;
+          case "http":
+            listener = new HTTPListenerConfiguration(item.ToInt("port"));
+            if (item.Attribute("allowCors") != null)
             {
-                config.HideSystemStats = statsdnet.ToBoolean("hideSystemStats");
-            }
+              var allowCors = item.Attribute("allowCors").Value;
+              ((HTTPListenerConfiguration)listener).AllowCors = allowCors;
 
-            // Add listeners
-            foreach (var item in statsdnet.Element("listeners").Elements())
-            {
-                ListenerConfiguration listener = null;
-                switch (item.Name.LocalName)
+              if (!string.Equals(allowCors, "*", StringComparison.InvariantCultureIgnoreCase) &&
+                  !string.Equals(allowCors, "?", StringComparison.InvariantCultureIgnoreCase))
+              {
+                try
                 {
-                    case "udp":
-                        listener = new UDPListenerConfiguration(item.ToInt("port"));
-                        break;
-                    case "tcp":
-                        listener = new TCPListenerConfiguration(item.ToInt("port"));
-                        break;
-                    case "http":
-                        listener = new HTTPListenerConfiguration(item.ToInt("port"));
-                        break;
-                    case "statsdnet":
-                        listener = new StatsdnetListenerConfiguration(item.ToInt("port"));
-                        break;
-                    case "mssql-relay":
-                        listener = new MSSQLRelayListenerConfiguration(item.Attribute("connectionString").Value,
-                            item.ToInt("batchSize"),
-                            item.ToBoolean("deleteAfterSend"),
-                            item.ToTimeSpan("pollInterval"));
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("Not sure what this listener is: " + item.Name);
+                  ((HTTPListenerConfiguration)listener).CorsWhitelist = ParseCorsWhitelist(allowCors);
                 }
-                config.Listeners.Add(listener);
-            }
-
-            // Add Backends
-            foreach (var item in statsdnet.Element("backends").Elements())
-            {
-                string name = item.Name.LocalName;
-                config.BackendConfigurations[name] = item;
-            }
-
-            // Add aggregators
-            var flushInterval = statsdnet.Element("aggregation").ToTimeSpan("flushInterval");
-            config.FlushInterval = flushInterval;
-            var aggregatorGroup = new AggregatorConfiguration();
-            foreach (var item in statsdnet.Element("aggregation").Elements())
-            {
-                switch (item.Name.LocalName)
+                catch
                 {
-                    case "gauges":
-                        config.Aggregators.Add("gauges", new GaugeAggregatorConfig(ns: item.Attribute("namespace").Value,
-                            removeZeroGauges: item.ToBoolean("removeZeroGauges")));
-                        break;
-                    case "counters":
-                        config.Aggregators.Add("counters", new CounterAggregationConfig(ns: item.Attribute("namespace").Value));
-                        break;
-                    case "sets":
-                        config.Aggregators.Add("sets", new SetAggregationConfig(ns: item.Attribute("namespace").Value));
-                        break;
-                    case "calendargrams":
-                        config.Aggregators.Add("calendargrams", new CalendargramAggregationConfig(ns: item.Attribute("namespace").Value));
-                        break;
-                    case "timers":
-                        var timerConfig = new TimersAggregationConfig(ns: item.Attribute("namespace").Value, calculateSumSquares: item.ToBoolean("calculateSumSquares"));
-                        config.Aggregators.Add("timers", timerConfig);
-                        // Now add the percentiles
-                        foreach (var subItem in item.Elements())
-                        {
-                            if (!timerConfig.AddPercentile(new PercentileConfig(
-                              name: subItem.Attribute("name").Value,
-                              threshold: subItem.ToInt("threshold"),
-                              flushInterval: subItem.ToTimeSpan("flushInterval")
-                              )))
-                            {
-                                // TODO: log that a duplicate percentile was ignored
-                            }
-                        }
-                        break;
+                  ((HTTPListenerConfiguration)listener).AllowCors = "*";
+                  ((HTTPListenerConfiguration)listener).CorsWhitelist = null;
                 }
+              }
             }
-            return config;
+            break;
+          case "statsdnet":
+            listener = new StatsdnetListenerConfiguration(item.ToInt("port"));
+            break;
+          case "mssql-relay":
+            listener = new MSSQLRelayListenerConfiguration(item.Attribute("connectionString").Value,
+                item.ToInt("batchSize"),
+                item.ToBoolean("deleteAfterSend"),
+                item.ToTimeSpan("pollInterval"));
+            break;
+          default:
+            throw new ArgumentOutOfRangeException("Not sure what this listener is: " + item.Name);
         }
+        config.Listeners.Add(listener);
+      }
+
+      // Add Backends
+      foreach (var item in statsdnet.Element("backends").Elements())
+      {
+        string name = item.Name.LocalName;
+        config.BackendConfigurations[name] = item;
+      }
+
+      // Add aggregators
+      var flushInterval = statsdnet.Element("aggregation").ToTimeSpan("flushInterval");
+      config.FlushInterval = flushInterval;
+      var aggregatorGroup = new AggregatorConfiguration();
+      foreach (var item in statsdnet.Element("aggregation").Elements())
+      {
+        switch (item.Name.LocalName)
+        {
+          case "gauges":
+            config.Aggregators.Add("gauges", new GaugeAggregatorConfig(ns: item.Attribute("namespace").Value,
+                removeZeroGauges: item.ToBoolean("removeZeroGauges")));
+            break;
+          case "counters":
+            config.Aggregators.Add("counters", new CounterAggregationConfig(ns: item.Attribute("namespace").Value));
+            break;
+          case "sets":
+            config.Aggregators.Add("sets", new SetAggregationConfig(ns: item.Attribute("namespace").Value));
+            break;
+          case "calendargrams":
+            config.Aggregators.Add("calendargrams", new CalendargramAggregationConfig(ns: item.Attribute("namespace").Value));
+            break;
+          case "timers":
+            var timerConfig = new TimersAggregationConfig(ns: item.Attribute("namespace").Value, calculateSumSquares: item.ToBoolean("calculateSumSquares"));
+            config.Aggregators.Add("timers", timerConfig);
+            // Now add the percentiles
+            foreach (var subItem in item.Elements())
+            {
+              if (!timerConfig.AddPercentile(new PercentileConfig(
+                name: subItem.Attribute("name").Value,
+                threshold: subItem.ToInt("threshold"),
+                flushInterval: subItem.ToTimeSpan("flushInterval")
+                )))
+              {
+                // TODO: log that a duplicate percentile was ignored
+              }
+            }
+            break;
+        }
+      }
+      return config;
     }
+
+    private static BinaryStringTree ParseCorsWhitelist(string filename)
+    {
+      var whitelist = new BinaryStringTree();
+
+      using (var whitelistFileStream = new FileStream(filename, FileMode.Open, FileAccess.Read))
+      using (var whitelistStreamReader = new StreamReader(whitelistFileStream))
+      {
+        while (!whitelistStreamReader.EndOfStream)
+        {
+          var line = whitelistStreamReader.ReadLine();
+
+          if (string.IsNullOrWhiteSpace(line)) continue; // ignore blank lines
+          line = line.Trim(); // remove any leading or trailing whitspace to ensure proper comment detection
+          if (line.StartsWith("#")) continue; // ignore comment lines
+          if (line.Any(char.IsWhiteSpace)) continue; // ignore entries with whitespace in them
+
+          whitelist.Insert(line);
+        }
+      }
+      return whitelist;
+    }
+  }
 }
