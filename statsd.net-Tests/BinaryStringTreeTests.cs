@@ -79,7 +79,7 @@ namespace statsd.net_Tests
     }
 
     [TestMethod]
-    public void Rotation_ABCDEF_ShouldBe_RootB_LeftA_RightC()
+    public void Rotation_ABCDEF_ShouldBe_D_BF_ACEG()
     {
       var a = "a";
       var b = "b";
@@ -115,6 +115,17 @@ namespace statsd.net_Tests
 
       Assert.AreSame(bst.RootNode.Right.Left.Value, e);
       Assert.AreSame(bst.RootNode.Right.Right.Value, g);
+    }
+
+    [TestMethod]
+    public void Balance_Given1023Nodes_ShouldBe_Depth10()
+    {
+      var bst = new BinaryStringTree();
+
+      for (int i = 1; i < 1024; i++)
+      {
+        bst.Insert(i.ToString());
+      }
     }
 
   }

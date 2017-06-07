@@ -59,38 +59,45 @@ namespace statsd.net.shared
     {
       while (node != null)
       {
+        // update current node balance
         node.Balance += balanceOffset;
 
         if (node.Balance == 0)
           return;
 
-        if (node.Balance == -2) //a
+        //Right Unbalance
+        if (node.Balance == -2)
         {
-          node.Right.Left = node;
-          node.Right.Parent = node.Parent;
-          node.Parent = node.Right;
-          node.Right = null;
+          // Left Right Rotate
+          // A      A
+          //  C ->   B
+          // B        C
+          if (node.Right.Balance == 1)
+            RotateLeft(node.Right);
 
-          if (node.Parent.Parent == null)
-            _rootNode = node.Parent;
-
-          node.Balance = 0;
-          node.Parent.Balance = 0;
+          // Left Rotate
+          // A       B
+          //  B  -> A C
+          //   C
+          RotateLeft(node);
           return;
         }
 
+        // Left Unbalance
         if (node.Balance == 2)
         {
-          node.Left.Right = node;
-          node.Left.Parent = node.Parent;
-          node.Parent = node.Left;
-          node.Left = null;
+          // Right Left Rotate
+          //  C      C
+          // A  ->  B
+          //  B    A
+          if (node.Left.Balance == -1)
+            RotateRight(node.Left);
 
-          if (node.Parent.Parent == null)
-            _rootNode = node.Parent;
-
-          node.Balance = 0;
-          node.Parent.Balance = 0;
+          // Right Rotate
+          //   C      B
+          //  B   -> A C
+          // A
+          RotateRight(node);
           return;
         }
 
@@ -104,6 +111,60 @@ namespace statsd.net.shared
 
         node = node.Parent;
       }
+    }
+
+    private void RotateLeft(Node node)
+    {
+      // Left Rotate
+      // A       B
+      //  B  -> A C
+      //   C
+      var parent = node.Parent;
+      var a = node;
+      var b = a.Right;
+
+      if (parent == null)
+        _rootNode = b;
+      else
+        parent.Right = b;
+      b.Parent = parent;
+
+      a.Right = b.Left;
+      if (a.Right != null)
+        a.Right.Parent = a;
+
+      b.Left = a;
+      b.Left.Parent = b;
+
+      b.Balance++;
+      a.Balance = -b.Balance;
+    }
+
+    private void RotateRight(Node node)
+    {
+      // Right Rotate
+      //   C      B
+      //  B   -> A C
+      // A
+      var parent = node.Parent;
+      var c = node;
+      var b = c.Left;
+
+      if (parent == null)
+        _rootNode = b;
+      else
+        parent.Left = b;
+      b.Parent = parent;
+
+      c.Left = b.Right;
+      if (c.Left != null)
+        c.Left.Parent = c;
+
+      b.Right = c;
+      b.Right.Parent = b;
+
+      b.Balance--;
+      c.Balance = -b.Balance;
     }
 
     public void Delete(string value)
@@ -121,7 +182,7 @@ namespace statsd.net.shared
       throw new NotImplementedException();
     }
 
-    [DebuggerDisplay("{Value}")]
+    [DebuggerDisplay("{Value} {Balance}")]
     public class Node
     {
       public string Value;
