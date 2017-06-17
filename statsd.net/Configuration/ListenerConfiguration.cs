@@ -32,7 +32,7 @@ namespace statsd.net.Configuration
   {
     public int Port { get; set; }
     public string AllowCors { get; set; }
-    public shared.BinaryStringTree CorsWhitelist { get; set; }
+    public string[] CorsWhitelist { get; set; }
     public HTTPListenerConfiguration(int port)
     {
       Port = port;

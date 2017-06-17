@@ -120,9 +120,9 @@ namespace statsd.net.Configuration
       return config;
     }
 
-    private static BinaryStringTree ParseCorsWhitelist(string filename)
+    private static string[] ParseCorsWhitelist(string filename)
     {
-      var whitelist = new BinaryStringTree();
+      var whitelist = new List<string>();
 
       using (var whitelistFileStream = new FileStream(filename, FileMode.Open, FileAccess.Read))
       using (var whitelistStreamReader = new StreamReader(whitelistFileStream))
@@ -136,10 +136,10 @@ namespace statsd.net.Configuration
           if (line.StartsWith("#")) continue; // ignore comment lines
           if (line.Any(char.IsWhiteSpace)) continue; // ignore entries with whitespace in them
 
-          whitelist.Insert(line);
+          whitelist.Add(line);
         }
       }
-      return whitelist;
+      return whitelist.ToArray();
     }
   }
 }
