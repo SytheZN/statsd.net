@@ -122,7 +122,7 @@ namespace statsd.net.shared.Listeners
             {
               {"Content-Type", "text/plain"},
               {"Content-Length", "0"},
-              {"Access-Control-Allow-Origin", _corsValidator.GetDomain(head)},
+              {"Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head)},
               {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
               {"Access-Control-Allow-Headers", "X-Requested-With,Content-Type"}
             }
@@ -242,7 +242,7 @@ namespace statsd.net.shared.Listeners
             {
               { "Content-Type", "application-xml" },
               { "Content-Length", "0" },
-              { "Access-Control-Allow-Origin", _corsValidator.GetDomain(head) }
+              { "Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head) }
             }
           };
           response.OnResponse(responseHead, new EmptyResponse());
@@ -278,7 +278,7 @@ namespace statsd.net.shared.Listeners
             {
               { "Content-Type", "text/plain" },
               { "Content-Length", Encoding.UTF8.GetByteCount("not found").ToString() },
-              { "Access-Control-Allow-Origin", _corsValidator.GetDomain(head) }
+              { "Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head) }
             }
           };
           response.OnResponse(headers, new BufferedProducer("not found"));
@@ -298,7 +298,7 @@ namespace statsd.net.shared.Listeners
           {
               { "Content-Type", "text/plain" },
               { "Content-Length", "0" },
-              { "Access-Control-Allow-Origin", _corsValidator.GetDomain(head)}
+              { "Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head)}
           }
           };
           response.OnResponse(responseHead, new EmptyResponse());
