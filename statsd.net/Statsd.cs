@@ -248,8 +248,6 @@ namespace statsd.net
       {
         if (httpConfig.AllowCors == "*")
           return new CorsStarValidator();
-        if (httpConfig.AllowCors == "?")
-          return new CorsAnyValidator();
         return new CorsWhitelistValidator(httpConfig.CorsWhitelist);
       }
 

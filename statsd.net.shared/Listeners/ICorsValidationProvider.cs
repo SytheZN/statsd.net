@@ -7,5 +7,6 @@ namespace statsd.net.shared.Listeners
   {
     bool ValidateRequest(HttpRequestHead head);
     string GetDomain(HttpRequestHead head);
+    string GetCorsAllowOriginHeader(HttpRequestHead head);
   }
 }

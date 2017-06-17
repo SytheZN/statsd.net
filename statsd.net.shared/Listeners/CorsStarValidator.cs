@@ -18,5 +18,10 @@ namespace statsd.net.shared.Listeners
     {
       return "*";
     }
+
+    public string GetCorsAllowOriginHeader(HttpRequestHead head)
+    {
+      return "*";
+    }
   }
 }

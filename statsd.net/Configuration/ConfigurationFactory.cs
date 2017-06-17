@@ -41,8 +41,7 @@ namespace statsd.net.Configuration
               var allowCors = item.Attribute("allowCors").Value;
               ((HTTPListenerConfiguration)listener).AllowCors = allowCors;
 
-              if (!string.Equals(allowCors, "*", StringComparison.InvariantCultureIgnoreCase) &&
-                  !string.Equals(allowCors, "?", StringComparison.InvariantCultureIgnoreCase))
+              if (!string.Equals(allowCors, "*", StringComparison.InvariantCultureIgnoreCase))
               {
                 try
                 {
