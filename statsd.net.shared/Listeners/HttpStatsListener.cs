@@ -15,8 +15,6 @@ namespace statsd.net.shared.Listeners
 {
   public class HttpStatsListener : IListener
   {
-    private const string FLASH_CROSSDOMAIN = "<?xml version=\"1.0\" ?>\r\n<cross-domain-policy>\r\n  <allow-access-from domain=\"{0}\" />\r\n</cross-domain-policy>\r\n";
-    private const string SILVERLIGHT_CROSSDOMAIN = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n <access-policy>\r\n <cross-domain-access>\r\n <policy>\r\n <allow-from http-request-headers=\"SOAPAction\">\r\n <domain uri=\"http://{0}\"/>\r\n <domain uri=\"https://{0}\" />\r\n </allow-from>\r\n <grant-to>\r\n <resource include-subpaths=\"true\" path=\"/\"/>\r\n </grant-to>\r\n </policy>\r\n </cross-domain-access>\r\n </access-policy>\r\n";
     private IScheduler _scheduler;
     private ISystemMetricsService _systemMetrics;
     private ITargetBlock<string> _target;
@@ -97,7 +95,7 @@ namespace statsd.net.shared.Listeners
         {
           ProcessClientAccessPolicyRequest(head, body, response);
         }
-        else if (head.Method.ToUpperInvariant() == "GET" && head.QueryString.Contains("metrics"))
+        else if (head.Method.ToUpperInvariant() == "GET" && head.QueryString?.Contains("metrics") == true)
         {
           ProcessGETRequest(head, body, response);
         }
@@ -113,203 +111,164 @@ namespace statsd.net.shared.Listeners
 
       private void ProcessOPTIONSRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
-        if (_corsValidator.ValidateRequest(head))
+        var responseHead = new HttpResponseHead()
         {
-          var responseHead = new HttpResponseHead()
-          {
-            Status = "200 OK",
-            Headers = new Dictionary<string, string>
+          Status = "200 OK",
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
               {"Content-Type", "text/plain"},
-              {"Content-Length", "0"},
-              {"Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head)},
-              {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
-              {"Access-Control-Allow-Headers", "X-Requested-With,Content-Type"}
-            }
-          };
-          response.OnResponse(responseHead, new EmptyResponse());
-        }
-        else
-        {
-          response.OnResponse(new HttpResponseHead() { Status = "403 Forbidden" }, new EmptyResponse());
-        }
+              {"Content-Length", "0"}
+            })
+        };
+        response.OnResponse(responseHead, new EmptyResponse());
       }
 
       private void ProcessPOSTRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
-        if (_corsValidator.ValidateRequest(head))
-        {
-          body.Connect(new BufferedConsumer(
-            (payload) =>
+        body.Connect(new BufferedConsumer(
+          (payload) =>
+          {
+            try
             {
-              try
-              {
-                _parent._systemMetrics.LogCount("listeners.http.bytes", Encoding.UTF8.GetByteCount(payload));
-                // Further split by ',' to match the GET while keeping backward compatibility and allowing you to use the join for both methods.
-                string[] lines = payload.Replace("\r", "")
-                  .Split(new char[] { '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
+              _parent._systemMetrics.LogCount("listeners.http.bytes", Encoding.UTF8.GetByteCount(payload));
+              // Further split by ',' to match the GET while keeping backward compatibility and allowing you to use the join for both methods.
+              var lines = payload.Replace("\r", "")
+                .Split(new char[] { '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-                for (int index = 0; index < lines.Length; index++)
-                {
-                  _parent._target.Post(lines[index]);
-                }
-                _parent._systemMetrics.LogCount("listeners.http.lines", lines.Length);
-                Respond(head, response, "200 OK");
-              }
-              catch
+              for (var index = 0; index < lines.Length; index++)
               {
-                Respond(head, response, "400 bad request");
+                _parent._target.Post(lines[index]);
               }
-
-            },
-            (error) =>
+              _parent._systemMetrics.LogCount("listeners.http.lines", lines.Length);
+              Respond(head, response, "200 OK");
+            }
+            catch
             {
-              Respond(head, response, "500 Internal server error");
-            }));
-        }
-        else
-        {
-          response.OnResponse(new HttpResponseHead() { Status = "403 Forbidden" }, new EmptyResponse());
-        }
+              Respond(head, response, "400 bad request");
+            }
+
+          },
+          (error) =>
+          {
+            Respond(head, response, "500 Internal server error");
+          }));
       }
 
       private void ProcessCrossDomainRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
-        if (_corsValidator.ValidateRequest(head))
+        var flashCrossDomain = _corsValidator.GetFlashCrossDomainPolicy();
+        var responseHead = new HttpResponseHead()
         {
-          var flashCrossDomain = string.Format(FLASH_CROSSDOMAIN, _corsValidator.GetDomain(head));
-          var responseHead = new HttpResponseHead()
-          {
-            Status = "200 OK",
-            Headers = new Dictionary<string, string>
+          Status = "200 OK",
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
               { "Content-Type", "application-xml" },
-              { "Content-Length", Encoding.UTF8.GetByteCount(flashCrossDomain).ToString() },
-              { "Access-Control-Allow-Origin", "*"}
+              { "Content-Length", Encoding.UTF8.GetByteCount(flashCrossDomain).ToString() }
             }
-          };
-          response.OnResponse(responseHead, new BufferedProducer(flashCrossDomain));
-        }
-        else
-        {
-          response.OnResponse(new HttpResponseHead() { Status = "403 Forbidden" }, new EmptyResponse());
-        }
+           )
+        };
+        response.OnResponse(responseHead, new BufferedProducer(flashCrossDomain));
       }
 
       private void ProcessClientAccessPolicyRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
-        if (_corsValidator.ValidateRequest(head))
+        var silverlightCrossdomain = _corsValidator.GetSilverlightCrossDomainPolicy();
+        var responseHead = new HttpResponseHead()
         {
-          var silverlightCrossdomain = string.Format(SILVERLIGHT_CROSSDOMAIN, _corsValidator.GetDomain(head));
-          var responseHead = new HttpResponseHead()
-          {
-            Status = "200 OK",
-            Headers = new Dictionary<string, string>
+          Status = "200 OK",
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
               { "Content-Type", "text/xml" },
               { "Content-Length", Encoding.UTF8.GetByteCount(silverlightCrossdomain).ToString() }
             }
-          };
-          response.OnResponse(responseHead, new BufferedProducer(silverlightCrossdomain));
-        }
-        else
-        {
-          response.OnResponse(new HttpResponseHead() { Status = "403 Forbidden" }, new EmptyResponse());
-        }
+          )
+        };
+        response.OnResponse(responseHead, new BufferedProducer(silverlightCrossdomain));
       }
 
 
       private void ProcessGETRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
-        if (_corsValidator.ValidateRequest(head))
+        var qs = head.QueryString.Split(new char[] { '&' }, StringSplitOptions.RemoveEmptyEntries)
+          .Select(p => p.Split(new char[] { '=' }, StringSplitOptions.None))
+          .ToDictionary(p => p[0], p => HttpUtility.UrlDecode(p[1]));
+
+        var lines = qs["metrics"].Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        for (var index = 0; index < lines.Length; index++)
         {
-          var qs = head.QueryString.Split(new char[] { '&' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(p => p.Split(new char[] { '=' }, StringSplitOptions.None))
-            .ToDictionary(p => p[0], p => HttpUtility.UrlDecode(p[1]));
+          _parent._target.Post(lines[index]);
+        }
+        _parent._systemMetrics.LogCount("listeners.http.lines", lines.Length);
+        _parent._systemMetrics.LogCount("listeners.http.bytes", Encoding.UTF8.GetByteCount(qs["metrics"]));
 
-          string[] lines = qs["metrics"].Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-          for (int index = 0; index < lines.Length; index++)
-          {
-            _parent._target.Post(lines[index]);
-          }
-          _parent._systemMetrics.LogCount("listeners.http.lines", lines.Length);
-          _parent._systemMetrics.LogCount("listeners.http.bytes", Encoding.UTF8.GetByteCount(qs["metrics"]));
-
-          var responseHead = new HttpResponseHead()
-          {
-            Status = "200 OK",
-            Headers = new Dictionary<string, string>
+        var responseHead = new HttpResponseHead()
+        {
+          Status = "200 OK",
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head, 
+            new Dictionary<string, string>
             {
               { "Content-Type", "application-xml" },
-              { "Content-Length", "0" },
-              { "Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head) }
+              { "Content-Length", "0" }
             }
-          };
-          response.OnResponse(responseHead, new EmptyResponse());
-        }
-        else
-        {
-          response.OnResponse(new HttpResponseHead() { Status = "403 Forbidden" }, new EmptyResponse());
-        }
+          )
+        };
+        response.OnResponse(responseHead, new EmptyResponse());
       }
 
       private void ProcessLoadBalancerRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
-        if (_corsValidator.ValidateRequest(head))
-        {
-          _parent._systemMetrics.LogCount("listeners.http.loadbalancer");
-          Respond(head, response, "200 OK");
-        }
-        else
-        {
-          response.OnResponse(new HttpResponseHead() { Status = "403 Forbidden" }, new EmptyResponse());
-        }
+        _parent._systemMetrics.LogCount("listeners.http.loadbalancer");
+        Respond(head, response, "200 OK");
       }
 
       private void ProcessFileNotFound(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
-        if (_corsValidator.ValidateRequest(head))
+        _parent._systemMetrics.LogCount("listeners.http.404");
+        var headers = new HttpResponseHead()
         {
-          _parent._systemMetrics.LogCount("listeners.http.404");
-          var headers = new HttpResponseHead()
-          {
-            Status = "404 Not Found",
-            Headers = new Dictionary<string, string>
+          Status = "404 Not Found",
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
               { "Content-Type", "text/plain" },
-              { "Content-Length", Encoding.UTF8.GetByteCount("not found").ToString() },
-              { "Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head) }
+              { "Content-Length", Encoding.UTF8.GetByteCount("not found").ToString() }
             }
-          };
-          response.OnResponse(headers, new BufferedProducer("not found"));
-        }
-        else
-        {
-          response.OnResponse(new HttpResponseHead() { Status = "403 Forbidden" }, new EmptyResponse());
-        }
+          )
+        };
+        response.OnResponse(headers, new BufferedProducer("not found"));
       }
 
       private void Respond(HttpRequestHead head, IHttpResponseDelegate response, string status)
       {
-          var responseHead = new HttpResponseHead()
-          {
-            Status = status,
-            Headers = new Dictionary<string, string>()
-          {
-              { "Content-Type", "text/plain" },
-              { "Content-Length", "0" },
-              { "Access-Control-Allow-Origin", _corsValidator.GetCorsAllowOriginHeader(head)}
-          }
-          };
-          response.OnResponse(responseHead, new EmptyResponse());
+        var responseHead = new HttpResponseHead()
+        {
+          Status = status,
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>()
+            {
+                { "Content-Type", "text/plain" },
+                { "Content-Length", "0" }
+            }
+          )
+        };
+        response.OnResponse(responseHead, new EmptyResponse());
       }
     }
 
     private class BufferedConsumer : IDataConsumer
     {
-      private List<ArraySegment<byte>> _buffer = new List<ArraySegment<byte>>();
-      private Action<string> _callback;
-      private Action<Exception> _error;
+      private readonly List<ArraySegment<byte>> _buffer = new List<ArraySegment<byte>>();
+      private readonly Action<string> _callback;
+      private readonly Action<Exception> _error;
 
       public BufferedConsumer(Action<string> callback,
         Action<Exception> error)
@@ -340,7 +299,7 @@ namespace statsd.net.shared.Listeners
 
     private class BufferedProducer : IDataProducer
     {
-      private ArraySegment<byte> _rawData;
+      private readonly ArraySegment<byte> _rawData;
 
       public BufferedProducer(string data)
       {
