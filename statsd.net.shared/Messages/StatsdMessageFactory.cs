@@ -47,21 +47,24 @@ namespace statsd.net.shared.Messages
           case "s":
             // uniques:765|s
             // uniques:ABSA434As1|s
-            return new Set(nameAndValue[0], statProperties[0]);
+            // return new Set(nameAndValue[0], statProperties[0]);
+            return new InvalidMessage("Sets are not accepted anymore: " + statProperties[1]);
           case "r":
             // some.other.value:12312|r
             // some.other.value:12312|r|99988883333
-            if (statProperties.Length == 2)
-            {
-              return new Raw(nameAndValue[0], Double.Parse(statProperties[0]));
-            }
-            else
-            {
-              return new Raw(nameAndValue[0], Double.Parse(statProperties[0]), long.Parse(statProperties[2]));
-            }
+            // if (statProperties.Length == 2)
+            // {
+            //   return new Raw(nameAndValue[0], Double.Parse(statProperties[0]));
+            // }
+            // else
+            // {
+            //   return new Raw(nameAndValue[0], Double.Parse(statProperties[0]), long.Parse(statProperties[2]));
+            // }
+            return new InvalidMessage("Raws are not accepted anymore: " + statProperties[1]);
           case "cg":
             // calendargram.key:value|cg|{h,d,w,m,dow}
-            return new Calendargram(nameAndValue[0], statProperties[0], statProperties[2]);
+            // return new Calendargram(nameAndValue[0], statProperties[0], statProperties[2]);
+            return new InvalidMessage("Calendargrams are not accepted anymore: " + statProperties[1]);
           default:
             return new InvalidMessage("Unknown message type: " + statProperties[1]);
         }
