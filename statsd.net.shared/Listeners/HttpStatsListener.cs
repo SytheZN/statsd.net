@@ -79,34 +79,45 @@ namespace statsd.net.shared.Listeners
         IDataProducer body,
         IHttpResponseDelegate response)
       {
-        if (head.Method.ToUpperInvariant() == "OPTIONS")
-        {
-          ProcessOPTIONSRequest(head, body, response);
+        try {
+          if (head.Method.ToUpperInvariant() == "OPTIONS")
+          {
+            ProcessOPTIONSRequest(head, body, response);
+          }
+          else if (head.Method.ToUpperInvariant() == "POST")
+          {
+            ProcessPOSTRequest(head, body, response);
+          }
+          else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/crossdomain.xml")
+          {
+            ProcessCrossDomainRequest(head, body, response);
+          }
+          else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/clientaccesspolicy.xml")
+          {
+            ProcessClientAccessPolicyRequest(head, body, response);
+          }
+          else if (head.Method.ToUpperInvariant() == "GET" && head.QueryString?.Contains("metrics") == true)
+          {
+            ProcessGETRequest(head, body, response);
+          }
+          else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/")
+          {
+            ProcessLoadBalancerRequest(head, body, response);
+          }
+          else
+          {
+            ProcessFileNotFound(head, body, response);
+          }
         }
-        else if (head.Method.ToUpperInvariant() == "POST")
-        {
-          ProcessPOSTRequest(head, body, response);
+        catch (Exception ex) {
+          ProcessInternalServerError(head, body, response);
         }
-        else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/crossdomain.xml")
-        {
-          ProcessCrossDomainRequest(head, body, response);
-        }
-        else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/clientaccesspolicy.xml")
-        {
-          ProcessClientAccessPolicyRequest(head, body, response);
-        }
-        else if (head.Method.ToUpperInvariant() == "GET" && head.QueryString?.Contains("metrics") == true)
-        {
-          ProcessGETRequest(head, body, response);
-        }
-        else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/")
-        {
-          ProcessLoadBalancerRequest(head, body, response);
-        }
-        else
-        {
-          ProcessFileNotFound(head, body, response);
-        }
+      }
+
+      private void ProcessInternalServerError(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
+      {
+        _parent._systemMetrics.LogCount("listeners.http.500");
+        Respond(head, response, "500 Internal server error");
       }
 
       private void ProcessOPTIONSRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
