@@ -15,17 +15,17 @@ namespace statsd.net.shared.Listeners
 {
   public class HttpStatsListener : IListener
   {
-    private const string FLASH_CROSSDOMAIN = "<?xml version=\"1.0\" ?>\r\n<cross-domain-policy>\r\n  <allow-access-from domain=\"*\" />\r\n</cross-domain-policy>\r\n";
-    private const string SILVERLIGHT_CROSSDOMAIN = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n <access-policy>\r\n <cross-domain-access>\r\n <policy>\r\n <allow-from http-request-headers=\"SOAPAction\">\r\n <domain uri=\"http://*\"/>\r\n <domain uri=\"https://*\" />\r\n </allow-from>\r\n <grant-to>\r\n <resource include-subpaths=\"true\" path=\"/\"/>\r\n </grant-to>\r\n </policy>\r\n </cross-domain-access>\r\n </access-policy>\r\n";
     private IScheduler _scheduler;
     private ISystemMetricsService _systemMetrics;
     private ITargetBlock<string> _target;
     private int _port;
+    private static ICorsValidationProvider _corsValidator;
 
-    public HttpStatsListener(int port, ISystemMetricsService systemMetrics)
+    public HttpStatsListener(int port, ISystemMetricsService systemMetrics, ICorsValidationProvider corsValidator)
     {
       _systemMetrics = systemMetrics;
       _port = port;
+      _corsValidator = corsValidator;
     }
 
     public void LinkTo(ITargetBlock<string> target, CancellationToken token)
@@ -81,52 +81,51 @@ namespace statsd.net.shared.Listeners
       {
         if (head.Method.ToUpperInvariant() == "OPTIONS")
         {
-          ProcessOPTIONSRequest(body, response);
+          ProcessOPTIONSRequest(head, body, response);
         }
         else if (head.Method.ToUpperInvariant() == "POST")
         {
-          ProcessPOSTRequest(body, response);
+          ProcessPOSTRequest(head, body, response);
         }
         else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/crossdomain.xml")
         {
-          ProcessCrossDomainRequest(body, response);
+          ProcessCrossDomainRequest(head, body, response);
         }
         else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/clientaccesspolicy.xml")
         {
-          ProcessClientAccessPolicyRequest(body, response);
+          ProcessClientAccessPolicyRequest(head, body, response);
         }
-        else if (head.Method.ToUpperInvariant() == "GET" && head.QueryString.Contains("metrics"))
+        else if (head.Method.ToUpperInvariant() == "GET" && head.QueryString?.Contains("metrics") == true)
         {
-          ProcessGETRequest(body, head, response);
+          ProcessGETRequest(head, body, response);
         }
         else if (head.Method.ToUpperInvariant() == "GET" && head.Uri == "/")
         {
-          ProcessLoadBalancerRequest(body, response);
+          ProcessLoadBalancerRequest(head, body, response);
         }
         else
         {
-          ProcessFileNotFound(body, response);
+          ProcessFileNotFound(head, body, response);
         }
       }
 
-      private void ProcessOPTIONSRequest(IDataProducer body, IHttpResponseDelegate response)
+      private void ProcessOPTIONSRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
         var responseHead = new HttpResponseHead()
         {
           Status = "200 OK",
-          Headers = new Dictionary<string, string>
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
-              { "Content-Type", "text/plain" },
-              { "Content-Length", "0" },
-              { "Access-Control-Allow-Origin", "*" },
-              { "Access-Control-Allow-Methods", "GET, POST, OPTIONS" },
-              { "Access-Control-Allow-Headers", "X-Requested-With,Content-Type" }
-            }
+              {"Content-Type", "text/plain"},
+              {"Content-Length", "0"}
+            })
         };
         response.OnResponse(responseHead, new EmptyResponse());
       }
 
-      private void ProcessPOSTRequest(IDataProducer body, IHttpResponseDelegate response)
+      private void ProcessPOSTRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
         body.Connect(new BufferedConsumer(
           (payload) =>
@@ -135,65 +134,73 @@ namespace statsd.net.shared.Listeners
             {
               _parent._systemMetrics.LogCount("listeners.http.bytes", Encoding.UTF8.GetByteCount(payload));
               // Further split by ',' to match the GET while keeping backward compatibility and allowing you to use the join for both methods.
-              string[] lines = payload.Replace("\r", "").Split(new char[] { '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
+              var lines = payload.Replace("\r", "")
+                .Split(new char[] { '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-              for (int index = 0; index < lines.Length; index++)
+              for (var index = 0; index < lines.Length; index++)
               {
                 _parent._target.Post(lines[index]);
               }
               _parent._systemMetrics.LogCount("listeners.http.lines", lines.Length);
-              Respond(response, "200 OK");
+              Respond(head, response, "200 OK");
             }
             catch
             {
-              Respond(response, "400 bad request");
+              Respond(head, response, "400 bad request");
             }
 
           },
           (error) =>
           {
-            Respond(response, "500 Internal server error");
+            Respond(head, response, "500 Internal server error");
           }));
       }
 
-      private void ProcessCrossDomainRequest(IDataProducer body, IHttpResponseDelegate response)
+      private void ProcessCrossDomainRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
+        var flashCrossDomain = _corsValidator.GetFlashCrossDomainPolicy();
         var responseHead = new HttpResponseHead()
         {
           Status = "200 OK",
-          Headers = new Dictionary<string, string>
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
               { "Content-Type", "application-xml" },
-              { "Content-Length", Encoding.UTF8.GetByteCount(FLASH_CROSSDOMAIN).ToString() },
-              { "Access-Control-Allow-Origin", "*"}
+              { "Content-Length", Encoding.UTF8.GetByteCount(flashCrossDomain).ToString() }
             }
+           )
         };
-        response.OnResponse(responseHead, new BufferedProducer(FLASH_CROSSDOMAIN));
+        response.OnResponse(responseHead, new BufferedProducer(flashCrossDomain));
       }
 
-      private void ProcessClientAccessPolicyRequest(IDataProducer body, IHttpResponseDelegate response)
+      private void ProcessClientAccessPolicyRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
+        var silverlightCrossdomain = _corsValidator.GetSilverlightCrossDomainPolicy();
         var responseHead = new HttpResponseHead()
         {
           Status = "200 OK",
-          Headers = new Dictionary<string, string>
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
               { "Content-Type", "text/xml" },
-              { "Content-Length", Encoding.UTF8.GetByteCount(SILVERLIGHT_CROSSDOMAIN).ToString() }
+              { "Content-Length", Encoding.UTF8.GetByteCount(silverlightCrossdomain).ToString() }
             }
+          )
         };
-        response.OnResponse(responseHead, new BufferedProducer(SILVERLIGHT_CROSSDOMAIN));
+        response.OnResponse(responseHead, new BufferedProducer(silverlightCrossdomain));
       }
 
 
-      private void ProcessGETRequest(IDataProducer body, HttpRequestHead head, IHttpResponseDelegate response)
+      private void ProcessGETRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
         var qs = head.QueryString.Split(new char[] { '&' }, StringSplitOptions.RemoveEmptyEntries)
           .Select(p => p.Split(new char[] { '=' }, StringSplitOptions.None))
           .ToDictionary(p => p[0], p => HttpUtility.UrlDecode(p[1]));
 
-        string[] lines = qs["metrics"].Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-        for (int index = 0; index < lines.Length; index++)
+        var lines = qs["metrics"].Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        for (var index = 0; index < lines.Length; index++)
         {
           _parent._target.Post(lines[index]);
         }
@@ -203,49 +210,55 @@ namespace statsd.net.shared.Listeners
         var responseHead = new HttpResponseHead()
         {
           Status = "200 OK",
-          Headers = new Dictionary<string, string>
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head, 
+            new Dictionary<string, string>
             {
               { "Content-Type", "application-xml" },
-              { "Content-Length", "0" },
-              { "Access-Control-Allow-Origin", "*"}
+              { "Content-Length", "0" }
             }
+          )
         };
         response.OnResponse(responseHead, new EmptyResponse());
       }
 
-      private void ProcessLoadBalancerRequest(IDataProducer body, IHttpResponseDelegate response)
+      private void ProcessLoadBalancerRequest(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
         _parent._systemMetrics.LogCount("listeners.http.loadbalancer");
-        Respond(response, "200 OK");
+        Respond(head, response, "200 OK");
       }
 
-      private void ProcessFileNotFound(IDataProducer body, IHttpResponseDelegate response)
+      private void ProcessFileNotFound(HttpRequestHead head, IDataProducer body, IHttpResponseDelegate response)
       {
         _parent._systemMetrics.LogCount("listeners.http.404");
         var headers = new HttpResponseHead()
         {
           Status = "404 Not Found",
-          Headers = new Dictionary<string, string>
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>
             {
               { "Content-Type", "text/plain" },
-              { "Content-Length", Encoding.UTF8.GetByteCount("not found").ToString() },
-              { "Access-Control-Allow-Origin", "*"}
+              { "Content-Length", Encoding.UTF8.GetByteCount("not found").ToString() }
             }
+          )
         };
         response.OnResponse(headers, new BufferedProducer("not found"));
       }
 
-      private void Respond(IHttpResponseDelegate response, string status)
+      private void Respond(HttpRequestHead head, IHttpResponseDelegate response, string status)
       {
         var responseHead = new HttpResponseHead()
         {
           Status = status,
-          Headers = new Dictionary<string, string>()
-          {
-              { "Content-Type", "text/plain" },
-              { "Content-Length", "0" },
-              { "Access-Control-Allow-Origin", "*"}
-          }
+          Headers = _corsValidator.AppendCorsHeaderDictionary(
+            head,
+            new Dictionary<string, string>()
+            {
+                { "Content-Type", "text/plain" },
+                { "Content-Length", "0" }
+            }
+          )
         };
         response.OnResponse(responseHead, new EmptyResponse());
       }
@@ -253,9 +266,9 @@ namespace statsd.net.shared.Listeners
 
     private class BufferedConsumer : IDataConsumer
     {
-      private List<ArraySegment<byte>> _buffer = new List<ArraySegment<byte>>();
-      private Action<string> _callback;
-      private Action<Exception> _error;
+      private readonly List<ArraySegment<byte>> _buffer = new List<ArraySegment<byte>>();
+      private readonly Action<string> _callback;
+      private readonly Action<Exception> _error;
 
       public BufferedConsumer(Action<string> callback,
         Action<Exception> error)
@@ -286,7 +299,7 @@ namespace statsd.net.shared.Listeners
 
     private class BufferedProducer : IDataProducer
     {
-      private ArraySegment<byte> _rawData;
+      private readonly ArraySegment<byte> _rawData;
 
       public BufferedProducer(string data)
       {

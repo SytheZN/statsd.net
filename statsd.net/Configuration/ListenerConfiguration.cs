@@ -6,64 +6,64 @@ using System.Threading.Tasks;
 
 namespace statsd.net.Configuration
 {
-    public class ListenerConfiguration
-    {
-    }
+  public class ListenerConfiguration
+  {
+  }
 
-    public class UDPListenerConfiguration : ListenerConfiguration
+  public class UDPListenerConfiguration : ListenerConfiguration
+  {
+    public int Port { get; set; }
+    public UDPListenerConfiguration(int port)
     {
-        public int Port { get; set; }
-        public UDPListenerConfiguration(int port)
-        {
-            Port = port;
-        }
+      Port = port;
     }
+  }
 
-    public class TCPListenerConfiguration : ListenerConfiguration
+  public class TCPListenerConfiguration : ListenerConfiguration
+  {
+    public int Port { get; set; }
+    public TCPListenerConfiguration(int port)
     {
-        public int Port { get; set; }
-        public TCPListenerConfiguration(int port)
-        {
-            Port = port;
-        }
+      Port = port;
     }
+  }
 
-    public class HTTPListenerConfiguration : ListenerConfiguration
+  public class HTTPListenerConfiguration : ListenerConfiguration
+  {
+    public int Port { get; set; }
+    public string AllowCors { get; set; }
+    public string[] CorsWhitelist { get; set; }
+    public HTTPListenerConfiguration(int port)
     {
-        public int Port { get; set; }
-        public string HeaderKey { get; set; }
-        public HTTPListenerConfiguration(int port, string headerKey = null)
-        {
-            Port = port;
-            HeaderKey = headerKey;
-        }
+      Port = port;
     }
+  }
 
-    public class StatsdnetListenerConfiguration : ListenerConfiguration
+  public class StatsdnetListenerConfiguration : ListenerConfiguration
+  {
+    public int Port { get; set; }
+    public StatsdnetListenerConfiguration(int port)
     {
-        public int Port { get; set; }
-        public StatsdnetListenerConfiguration(int port)
-        {
-            Port = port;
-        }
+      Port = port;
     }
+  }
 
-    public class MSSQLRelayListenerConfiguration : ListenerConfiguration
+  public class MSSQLRelayListenerConfiguration : ListenerConfiguration
+  {
+    public string ConnectionString { get; set; }
+    public int BatchSize { get; set; }
+    public bool DeleteAfterSend { get; set; }
+    public TimeSpan PollInterval { get; set; }
+
+    public MSSQLRelayListenerConfiguration(string connectionString,
+        int batchSize,
+        bool deleteAfterSend,
+        TimeSpan pollInterval)
     {
-        public string ConnectionString { get; set; }
-        public int BatchSize { get; set; }
-        public bool DeleteAfterSend { get; set; }
-        public TimeSpan PollInterval { get; set; }
-
-        public MSSQLRelayListenerConfiguration(string connectionString,
-            int batchSize,
-            bool deleteAfterSend,
-            TimeSpan pollInterval)
-        {
-            ConnectionString = connectionString;
-            BatchSize = batchSize;
-            DeleteAfterSend = deleteAfterSend;
-            PollInterval = pollInterval;
-        }
+      ConnectionString = connectionString;
+      BatchSize = batchSize;
+      DeleteAfterSend = deleteAfterSend;
+      PollInterval = pollInterval;
     }
+  }
 }
