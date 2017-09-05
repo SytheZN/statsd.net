@@ -222,7 +222,7 @@ namespace statsd.net
                 else if (listenerConfig is HTTPListenerConfiguration)
                 {
                     var httpConfig = listenerConfig as HTTPListenerConfiguration;
-                    AddListener(new HttpStatsListener(httpConfig.Port, systemMetrics));
+                    AddListener(new HttpStatsListener(httpConfig.Port, systemMetrics, GetCorsValidationProvider(httpConfig)));
                     systemMetrics.LogCount("startup.listener.http." + httpConfig.Port);
                 }
                 else if (listenerConfig is StatsdnetListenerConfiguration)
@@ -244,7 +244,14 @@ namespace statsd.net
             }
         }
 
-        public void AddListener(IListener listener)
+      private ICorsValidationProvider GetCorsValidationProvider(HTTPListenerConfiguration httpConfig)
+      {
+        if (httpConfig.AllowCors == "*")
+          return new CorsStarValidator();
+        return new CorsWhitelistValidator(httpConfig.CorsWhitelist);
+      }
+
+      public void AddListener(IListener listener)
         {
             _log.InfoFormat("Adding listener {0}", listener.GetType().Name);
             _listeners.Add(listener);
